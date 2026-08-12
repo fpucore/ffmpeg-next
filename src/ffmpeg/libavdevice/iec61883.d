@@ -1,0 +1,17 @@
+libavdevice/iec61883.o: libavdevice/iec61883.c config_components.h \
+ libavformat/demux.h libavutil/rational.h libavutil/attributes.h \
+ libavcodec/packet.h libavutil/attributes.h libavutil/buffer.h \
+ libavutil/dict.h libavutil/version.h libavutil/macros.h \
+ libavutil/avconfig.h libavcodec/version_major.h libavformat/avformat.h \
+ libavcodec/codec_par.h libavutil/avutil.h libavutil/common.h \
+ libavutil/error.h libavutil/version.h config.h libavutil/intmath.h \
+ libavutil/x86/intmath.h libavutil/internal.h libavutil/libm.h \
+ libavutil/mathematics.h libavutil/rational.h libavutil/intfloat.h \
+ libavutil/log.h libavutil/pixfmt.h libavutil/channel_layout.h \
+ libavutil/pixfmt.h libavcodec/codec_id.h libavutil/samplefmt.h \
+ libavcodec/defs.h libavcodec/packet.h libavcodec/defs.h libavutil/log.h \
+ libavformat/avio.h libavformat/version_major.h libavformat/dv.h \
+ libavformat/mpegts.h libavutil/mem.h libavutil/opt.h \
+ libavutil/channel_layout.h libavutil/dict.h libavutil/samplefmt.h \
+ libavdevice/avdevice.h libavdevice/version_major.h \
+ libavformat/avformat.h

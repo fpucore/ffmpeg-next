@@ -1,0 +1,28 @@
+libavcodec/proresenc_kostya_vulkan.o: \
+ libavcodec/proresenc_kostya_vulkan.c libavutil/avassert.h config.h \
+ libavutil/attributes.h libavutil/log.h libavutil/version.h \
+ libavutil/macros.h libavutil/avconfig.h libavutil/buffer.h \
+ libavutil/macros.h libavutil/mem.h libavutil/mem_internal.h \
+ libavutil/opt.h libavutil/rational.h libavutil/channel_layout.h \
+ libavutil/dict.h libavutil/pixfmt.h libavutil/samplefmt.h \
+ libavutil/pixdesc.h libavutil/hwcontext_vulkan.h libavutil/frame.h \
+ libavutil/avutil.h libavutil/common.h libavutil/error.h \
+ libavutil/intmath.h libavutil/x86/intmath.h libavutil/internal.h \
+ libavutil/libm.h libavutil/mathematics.h libavutil/intfloat.h \
+ libavutil/buffer.h libavutil/hwcontext.h libavutil/vulkan_loader.h \
+ libavutil/avassert.h libavutil/vulkan_functions.h \
+ libavutil/hwcontext_vulkan.h libavutil/vulkan.h libavutil/refstruct.h \
+ libavutil/thread.h libavutil/pixdesc.h libavutil/intreadwrite.h \
+ libavutil/bswap.h libavutil/x86/bswap.h libavutil/attributes.h \
+ libavutil/x86/intreadwrite.h libavcodec/avcodec.h libavutil/samplefmt.h \
+ libavutil/avutil.h libavutil/channel_layout.h libavutil/dict.h \
+ libavutil/frame.h libavutil/log.h libavutil/pixfmt.h \
+ libavutil/rational.h libavcodec/codec.h libavutil/hwcontext.h \
+ libavcodec/codec_id.h libavcodec/codec_id.h libavcodec/defs.h \
+ libavcodec/packet.h libavutil/version.h libavcodec/version_major.h \
+ libavcodec/version_major.h libavcodec/codec_internal.h \
+ libavcodec/encode.h libavcodec/put_bits.h libavutil/intreadwrite.h \
+ libavutil/common.h libavcodec/profiles.h libavcodec/bytestream.h \
+ libavcodec/proresdata.h libavcodec/proresenc_kostya_common.h \
+ libavutil/attributes_internal.h libavcodec/fdctdsp.h \
+ libavcodec/hwconfig.h libavcodec/hwaccels.h

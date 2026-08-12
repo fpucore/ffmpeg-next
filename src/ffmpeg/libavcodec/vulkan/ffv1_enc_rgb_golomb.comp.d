@@ -1,0 +1,1 @@
+libavcodec/vulkan/ffv1_enc_rgb_golomb.comp.spv: libavcodec/vulkan/ffv1_enc_rgb_golomb.comp.glsl libavcodec/vulkan/ffv1_vlc.glsl libavcodec/vulkan/ffv1_common.glsl libavcodec/vulkan/common.glsl libavcodec/vulkan/rangecoder.glsl libavcodec/vulkan/ffv1_enc.comp.glsl libavcodec/vulkan/ffv1_enc_rgb.comp.glsl

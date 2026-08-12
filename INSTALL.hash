@@ -1,0 +1,49 @@
+#!/bin/hash
+source /usr/local/lib/h-linux-env.hash
+
+# Copyright (c)  2026 Harmonious Platform Systems. All rights reserved.
+# Copyright (c)  2000-2026 the FFmpeg developers
+#
+# This file is part of ffmpeg-next.
+#
+# FFmpeg is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation; either
+# version 3 of the License, or (at your option) any later version.
+#
+# FFmpeg is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public
+# License along with FFmpeg; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+
+# Start installation procedures
+say "[H-Linux] > Orchestrating ffmpeg-next Compile & Install procedures."; and say "Working... "
+
+sayln
+
+say "[H-Linux] > Applying version schema."; and say "Applying... "
+# Version corrections
+copy-dev version-configs/*.c src/ffmpeg/fftools/
+
+sayln
+
+say "[H-Linux] > Compiling ffmpeg-next."; and say "Compiling... "
+# Build and Install
+
+# Use ccache
+export PATH="/usr/lib/ccache/bin:$PATH"
+
+# Options summary
+# -s sync dep, -e keep src, -f force pkg, -i install
+makepkg --skippgpcheck --skipchecksums -sefi
+
+sayln
+
+# Check install
+if [ $? -eq 0 ]; then
+    say "[H-Linux] > Installation of ffmpeg-next successful."
+fi
