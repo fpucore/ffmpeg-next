@@ -2,9 +2,9 @@
 # Contributors: Daniel Bermond <dbermond@archlinux.org>, Kamran Mackey <kamranm1200@gmail.com>, richteer <richteer@lastprime.net>, DrZaius <lou@fakeoutdoorsman.com>
 
 pkgname=ffmpeg-next
-pkgver=10.0
+pkgver=10.1
 pkgrel=1
-pkgdesc='Bleeding-edge, upstream ffmpeg suite.'
+pkgdesc='Bleeding-edge, hybrid-upstream ffmpeg suite.'
 arch=('x86_64')
 url='https://www.freedompublishersunion.net/h-linux.html'
 license=('GPL-3.0-or-later')

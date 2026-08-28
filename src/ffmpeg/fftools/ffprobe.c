@@ -2795,9 +2795,9 @@ static void ffprobe_show_program_version(AVTextFormatContext *tfc)
     av_bprint_init(&pbuf, 1, AV_BPRINT_SIZE_UNLIMITED);
 
     avtext_print_section_header(tfc, NULL, SECTION_ID_PROGRAM_VERSION);
-    print_str("ffmpeg-next", FFMPEG_VERSION);
-    print_fmt("copyright", "Copyright (c) %%d Harmonious Platform Systems. All rights reserved.",
-              CONFIG_THIS_YEAR);
+    print_str("version", FFMPEG_VERSION);
+    print_fmt("copyright", "Copyright (c) %d-%d the FFmpeg developers",
+              program_birth_year, CONFIG_THIS_YEAR);
     print_str("compiler_ident", CC_IDENT);
     print_str("configuration", FFMPEG_CONFIGURATION);
     avtext_print_section_footer(tfc);

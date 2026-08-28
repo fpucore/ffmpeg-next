@@ -11,7 +11,7 @@
 
 ```
 
-Bleeding-edge, upstream ffmpeg suite.
+Bleeding-edge, hybrid-upstream ffmpeg suite.
 
 A custom compilation of the ffmpeg base, optimized for the GNU Operating System / H-Linux environment.
 
@@ -19,7 +19,7 @@ A custom compilation of the ffmpeg base, optimized for the GNU Operating System 
 
 ## 📌 Overview
 
-This repository provides the blueprint to compile a custom `10.0` version of ffmpeg(-next) on H-Linux systems.
+This repository provides the blueprint to compile a custom `10.1` version of ffmpeg(-next) on H-Linux systems.
 
 It bypasses standard packaging limitations to deliver a highly specific, high-performance targeted build featuring 
 advanced hardware acceleration pipelines.
@@ -28,7 +28,7 @@ advanced hardware acceleration pipelines.
 
 ## 🛠️ Latest Changes (from Changelog)
 
-* Based on ffmpeg 9.0
+* Based on ffmpeg 9.0 (August 28, 2026-snapshot)
 * Tightened integration with GNU Operating System / H-Linux
 * Added dep H-Linux human command layer
 * Added dep H-Linux env library
