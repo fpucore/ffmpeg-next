@@ -3,7 +3,7 @@
 
 pkgname=ffmpeg-next
 pkgver=10.1
-pkgrel=1
+pkgrel=2
 pkgdesc='Bleeding-edge, hybrid-upstream ffmpeg suite.'
 arch=('x86_64')
 url='https://www.freedompublishersunion.net/h-linux.html'
