@@ -21,24 +21,97 @@ source /usr/local/lib/h-linux-env.hash
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 # Start installation procedures
-say "[H-Linux] > Orchestrating ffmpeg-next Compile & Install procedures."; and say "Working... "
+say "[H-Linux] > Orchestrating ffmpeg-next LAME dependency check, and Compile & Install procedures."; and say "Working... "
 
 sayln
 
-say "[H-Linux] > Applying version schema."; and say "Applying... "
+# LAME dependency check
+say "[H-Linux] > Checking LAME MP3 encoder dependency."; and say "Checking... "
+
+LAME_OK=0
+
+if command -v pkg-config >/dev/null 2>&1 &&
+   pkg-config --exists lame 2>/dev/null &&
+   [ -f /usr/include/lame/lame.h ] &&
+   [ -e /usr/lib/libmp3lame.so ]; then
+
+    LAME_VERSION="$(pkg-config --modversion lame 2>/dev/null)"
+
+    if [ -n "$LAME_VERSION" ]; then
+        LAME_OK=1
+    fi
+fi
+
+if [ "$LAME_OK" -eq 1 ]; then
+    sayln
+    say "[H-Linux] > LAME development library detected: version $LAME_VERSION"
+    say "[H-Linux] > LAME MP3 encoding support: READY."
+    sayln
+else
+    sayln
+    say "[H-Linux] > WARNING: LAME development library is missing or unusable."
+    sayln
+    say "[H-Linux] > Attempting installation..."
+    sayln
+
+    if ! command -v nlp >/dev/null 2>&1; then
+        say "[H-Linux] > ERROR: NLP is not available."
+        sayln
+        say "[H-Linux] > Install the LAME package manually and rerun INSTALL.hash."
+        sayln
+        exit 1
+    fi
+
+    if ! nlp -S lame; then
+        say "[H-Linux] > ERROR: Failed to install the LAME package."
+        sayln
+        exit 1
+    fi
+
+    # Re-check after installation
+    if command -v pkg-config >/dev/null 2>&1 &&
+       pkg-config --exists lame 2>/dev/null &&
+       [ -f /usr/include/lame/lame.h ] &&
+       [ -e /usr/lib/libmp3lame.so ]; then
+
+        LAME_VERSION="$(pkg-config --modversion lame 2>/dev/null)"
+
+        if [ -n "$LAME_VERSION" ]; then
+            say "[H-Linux] > LAME development library installed successfully: version $LAME_VERSION"
+            sayln
+            say "[H-Linux] > LAME MP3 encoding support: READY."
+            sayln
+            LAME_OK=1
+        fi
+    fi
+
+    if [ "$LAME_OK" -ne 1 ]; then
+        say "[H-Linux] > ERROR: LAME installation could not be verified."
+        sayln
+        say "[H-Linux] > Cannot continue with --enable-libmp3lame."
+        sayln
+        exit 1
+    fi
+fi
+
+sayln
+
+
 # Version corrections
+say "[H-Linux] > Applying version schema."; and say "Applying... "
 copy-dev version-configs/*.c src/ffmpeg/fftools/
 
 sayln
 
-say "[H-Linux] > Compiling ffmpeg-next."; and say "Compiling... (configuring first) "
 # Build and Install
+say "[H-Linux] > Compiling ffmpeg-next."; and say "Compiling... (configuring first) "
 
 # Try configure (w/ Clang experimental) and make clean before anything else
 goto src/ffmpeg
 ./configure \
   --cc="clang" \
-  --cxx="clang++"; and make clean
+  --cxx="clang++" \
+  --enable-libmp3lame; and make clean
 goto ../..
 
 # Use ccache
