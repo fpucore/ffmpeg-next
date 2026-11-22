@@ -59,7 +59,7 @@ advanced hardware acceleration pipelines.
 * H-Linux Environment Library 🔧
 * NLP 🧠
 * makepkg 📦
-* GCC or Clang ⚙
+* GCC/Clang ⚙
 * ccache 💾
 * LAME (codec)
 * All dependencies specified by the included PKGBUILD
