@@ -71,6 +71,12 @@ av_cold void ff_sws_init_swscale_loongarch(SwsInternal *c)
             c->hyScale = c->hcScale = c->dstBpc > 14 ? ff_hscale_16_to_19_lsx
                                                      : ff_hscale_16_to_15_lsx;
         }
+        if (c->srcBpc == 8 && c->dstBpc <= 14 &&
+            c->opts.flags & SWS_FAST_BILINEAR &&
+            c->lumXInc <= (1 << 18) && c->chrXInc <= (1 << 18)) {
+            c->hyscale_fast = ff_hyscale_fast_lsx;
+            c->hcscale_fast = ff_hcscale_fast_lsx;
+        }
     }
 #if HAVE_LASX
     if (have_lasx(cpu_flags)) {
@@ -104,6 +110,11 @@ av_cold void rgb2rgb_init_loongarch(void)
 av_cold SwsFunc ff_yuv2rgb_init_loongarch(SwsInternal *c)
 {
     int cpu_flags = av_get_cpu_flags();
+
+    /* the converters output pairs of pixels */
+    if (c->opts.dst_w & 1)
+        return NULL;
+
 #if HAVE_LASX
     if (have_lasx(cpu_flags)) {
         if (c->opts.src_format == AV_PIX_FMT_YUV420P) {

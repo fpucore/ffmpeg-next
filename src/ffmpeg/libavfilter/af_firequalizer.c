@@ -542,6 +542,8 @@ static void generate_min_phase_kernel(FIREqualizerContext *s, float *rdft_buf)
     double norm = 2.0 / cepstrum_len;
     double minval = 1e-7 / rdft_len;
 
+    av_assert0(cepstrum_len >= 2);
+
     memset(s->cepstrum_buf, 0, cepstrum_len * sizeof(*s->cepstrum_buf));
     memset(s->cepstrum_tbuf, 0, (cepstrum_len + 2) * sizeof(*s->cepstrum_tbuf));
     memcpy(s->cepstrum_buf, rdft_buf, rdft_len/2 * sizeof(*rdft_buf));
@@ -728,6 +730,7 @@ static int config_input(AVFilterLink *inlink)
     FilterLink *l = ff_filter_link(inlink);
     AVFilterContext *ctx = inlink->dst;
     FIREqualizerContext *s = ctx->priv;
+    const double delay_samples = inlink->sample_rate * s->delay;
     float iscale, scale = 1.f;
     int rdft_bits, ret;
 
@@ -736,13 +739,17 @@ static int config_input(AVFilterLink *inlink)
     s->next_pts = 0;
     s->frame_nsamples_max = 0;
 
-    s->fir_len = FFMAX(2 * (int)(inlink->sample_rate * s->delay) + 1, 3);
+    if (!isfinite(delay_samples) || delay_samples >= (INT_MAX + 1.0) / 2) {
+        av_log(ctx, AV_LOG_ERROR, "too large or non-finite delay, please decrease it.\n");
+        return AVERROR(EINVAL);
+    }
+    s->fir_len = FFMAX(2 * (int)delay_samples + 1, 3);
     s->remaining = s->fir_len - 1;
 
     for (rdft_bits = RDFT_BITS_MIN; rdft_bits <= RDFT_BITS_MAX; rdft_bits++) {
         s->rdft_len = 1 << rdft_bits;
         s->nsamples_max = s->rdft_len - s->fir_len + 1;
-        if (s->nsamples_max * 2 >= s->fir_len)
+        if ((int64_t)s->nsamples_max * 2 >= s->fir_len)
             break;
     }
 

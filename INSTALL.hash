@@ -1,6 +1,8 @@
 #!/bin/hash
 source /usr/local/lib/h-linux-env.hash
 
+# LICENSING
+#
 # Copyright (c)  2026 Harmonious Platform Systems. All rights reserved.
 # Copyright (c)  2000-2026 the FFmpeg developers
 #
@@ -19,6 +21,12 @@ source /usr/local/lib/h-linux-env.hash
 # You should have received a copy of the GNU General Public
 # License along with FFmpeg; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+
+# ADDITIONAL LICENSING
+#
+# The `AV2` components are licensed under BSD 3-Clause Clear License The Clear BSD License.
+# Copyright (c)  2021, Alliance for Open Media. All rights reserved.
+
 
 # Start installation procedures
 say "[H-Linux] > Orchestrating ffmpeg-next LAME dependency check, and Compile & Install procedures."; and say "Working... "
@@ -46,17 +54,13 @@ if [ "$LAME_OK" -eq 1 ]; then
     sayln
     say "[H-Linux] > LAME development library detected: version $LAME_VERSION"
     say "[H-Linux] > LAME MP3 encoding support: READY."
-    sayln
 else
     sayln
     say "[H-Linux] > WARNING: LAME development library is missing or unusable."
-    sayln
     say "[H-Linux] > Attempting installation..."
-    sayln
 
     if ! command -v nlp >/dev/null 2>&1; then
         say "[H-Linux] > ERROR: NLP is not available."
-        sayln
         say "[H-Linux] > Install the LAME package manually and rerun INSTALL.hash."
         sayln
         exit 1
@@ -78,16 +82,13 @@ else
 
         if [ -n "$LAME_VERSION" ]; then
             say "[H-Linux] > LAME development library installed successfully: version $LAME_VERSION"
-            sayln
             say "[H-Linux] > LAME MP3 encoding support: READY."
-            sayln
             LAME_OK=1
         fi
     fi
 
     if [ "$LAME_OK" -ne 1 ]; then
         say "[H-Linux] > ERROR: LAME installation could not be verified."
-        sayln
         say "[H-Linux] > Cannot continue with --enable-libmp3lame."
         sayln
         exit 1
@@ -95,7 +96,6 @@ else
 fi
 
 sayln
-
 
 # Version corrections
 say "[H-Linux] > Applying version schema."; and say "Applying... "
@@ -106,12 +106,44 @@ sayln
 # Build and Install
 say "[H-Linux] > Compiling ffmpeg-next."; and say "Compiling... (configuring first) "
 
-# Try configure (w/ Clang experimental) and make clean before anything else
+# Clean only if the tree was configured before, then configure (w/ Clang experimental)
 goto src/ffmpeg
-./configure \
-  --cc="clang" \
-  --cxx="clang++" \
-  --enable-libmp3lame; and make clean
+
+if [ -f ffbuild/config.mak ]; then
+    make clean
+fi
+
+if ! ./configure \
+--cc=clang \
+--cxx=clang++ \
+--enable-gpl \
+--enable-shared \
+--enable-libmp3lame \
+--enable-libdav1d \
+--enable-libopus \
+--enable-libvpx \
+--enable-libplacebo \
+--enable-vulkan \
+--enable-vaapi \
+--enable-vdpau \
+--enable-libx264 \
+--enable-libx265 \
+--enable-libsvtav1 \
+--enable-libass \
+--enable-libsoxr \
+--enable-libxml2 \
+--enable-libwebp \
+--enable-libopenjpeg \
+--enable-libzimg; then
+    sayln
+    say "[H-Linux] > ERROR: configure failed. See src/ffmpeg/ffbuild/config.log"
+    sayln
+    exit 1
+fi
+
+# Ghost args. DO NOT USE
+# --enable-opengl \    # Removed from ffmpeg Oct 2026
+
 goto ../..
 
 # Use ccache
@@ -121,6 +153,78 @@ export PATH="/usr/lib/ccache/bin:$PATH"
 # -s sync dep, -e keep src, -f force pkg, -i install
 makepkg --skippgpcheck --skipchecksums -sefi
 PKG_STATUS=$?
+
+sayln
+
+
+# Build and Install AV2 component (use GCC for this procedure, as recommended for AV2 compile)
+say "[H-Linux] > Sourcing and compiling ffmpeg-next AV2 component."; and say "Sourcing... "
+
+sayln
+
+goto av2
+
+if [ -d avm/.git ] && [ -f avm/CMakeLists.txt ]; then
+    say "[H-Linux] > Existing source found; reusing."
+    if [ "${AVM_UPDATE:-0}" = "1" ]; then
+        say "[H-Linux] > AVM_UPDATE=1; fast-forwarding."
+        git -C avm pull --ff-only || say "[H-Linux] > Warning: pull failed; building existing source."
+    fi
+else
+    say "[H-Linux] > No source found; cloning fresh."
+    rm -rf avm
+    git clone https://www.github.com/AOMediaCodec/avm.git
+fi
+
+goto avm
+rm -rf build
+newdir-dev build
+goto build
+
+
+say "Compiling... "; and sayln
+cmake $up -DENABLE_DOCS=0
+make -j$(nproc)
+elevate make install
+
+
+# pkg-config: make avm.pc discoverable in fish, [h][b]ash + zsh
+AVM_PC_DIR="/usr/local/lib/pkgconfig"
+BASH_LINE='export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"'
+FISH_LINE='set -gx PKG_CONFIG_PATH /usr/local/lib/pkgconfig $PKG_CONFIG_PATH'
+
+write_if_missing() {
+    # $1 = file, $2 = exact line
+    grep -qxF "$2" "$1" 2>/dev/null && return 0
+    printf '\n# Added by ffmpeg-next installer for AVM pkg-config\n%s\n' "$2" >> "$1"
+    say "[H-Linux] > Added PKG_CONFIG_PATH to $1"
+}
+
+# [h][b]ash
+for rc in "$HOME/.bashrc" "$HOME/.bash_profile"; do
+    [ -f "$rc" ] && write_if_missing "$rc" "$BASH_LINE"
+done
+
+# zsh
+for rc in "$HOME/.zshrc" "$HOME/.zprofile"; do
+    [ -f "$rc" ] && write_if_missing "$rc" "$BASH_LINE"
+done
+
+# fish
+FISH_CFG="$HOME/.config/fish/config.fish"
+if [ -d "$HOME/.config/fish" ] || command -v fish >/dev/null 2>&1; then
+    mkdir -p "$(dirname "$FISH_CFG")"
+    [ -f "$FISH_CFG" ] || touch "$FISH_CFG"
+    write_if_missing "$FISH_CFG" "$FISH_LINE"
+fi
+
+# Verify pkg-config can resolve avm
+if PKG_CONFIG_PATH="$AVM_PC_DIR${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" pkg-config --exists avm; then
+    say "[H-Linux] > pkg-config sees avm."
+else
+    say "[H-Linux] > WARNING: pkg-config cannot see avm."
+fi
+
 
 sayln
 

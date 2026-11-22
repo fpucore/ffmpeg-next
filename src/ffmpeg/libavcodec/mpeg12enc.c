@@ -1056,6 +1056,16 @@ static av_cold int encode_init(AVCodecContext *avctx)
     int ret;
     int max_size = avctx->codec_id == AV_CODEC_ID_MPEG2VIDEO ? 16383 : 4095;
 
+    if (m->seq_end && (avctx->flags & AV_CODEC_FLAG_LOW_DELAY)) {
+        av_log(avctx, AV_LOG_ERROR, "Sequence end code is not supported with low delay\n");
+        return AVERROR(EINVAL);
+    }
+
+    if (m->seq_end && (m->frame_skip_threshold || m->frame_skip_factor)) {
+        av_log(avctx, AV_LOG_ERROR, "Sequence end code is not supported with frame skipping\n");
+        return AVERROR(EINVAL);
+    }
+
     if (avctx->width > max_size || avctx->height > max_size) {
         av_log(avctx, AV_LOG_ERROR, "%s does not support resolutions above %dx%d\n",
                CONFIG_SMALL ? avctx->codec->name : avctx->codec->long_name,
@@ -1268,6 +1278,7 @@ static const AVOption mpeg2_options[] = {
       FF_MPV_OFFSET(c.intra_vlc_format),    AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "non_linear_quant", "Use nonlinear quantizer.",    FF_MPV_OFFSET(c.q_scale_type),   AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "alternate_scan",   "Enable alternate scantable.", FF_MPV_OFFSET(c.alternate_scan), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "seq_end",          "Write sequence end code.",    FF_MPV_MAIN_OFFSET(seq_end),     AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "a53cc", "Use A53 Closed Captions (if available)", OFFSET(a53_cc),         AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, VE },
     { "seq_disp_ext",     "Write sequence_display_extension blocks.", OFFSET(seq_disp_ext), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 1, VE, .unit = "seq_disp_ext" },
     {     "auto",   NULL, 0, AV_OPT_TYPE_CONST,  {.i64 = -1},  0, 0, VE, .unit = "seq_disp_ext" },
@@ -1314,6 +1325,7 @@ const FFCodec ff_mpeg1video_encoder = {
     .close                = ff_mpv_encode_end,
     CODEC_FRAMERATES_ARRAY(ff_mpeg12_frame_rate_tab + 1),
     CODEC_PIXFMTS(AV_PIX_FMT_YUV420P),
+    CODEC_CHROMA_LOCS(AVCHROMA_LOC_CENTER),
     .color_ranges         = AVCOL_RANGE_MPEG,
     .p.capabilities       = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |
                             AV_CODEC_CAP_SLICE_THREADS |
@@ -1321,6 +1333,27 @@ const FFCodec ff_mpeg1video_encoder = {
     .caps_internal        = FF_CODEC_CAP_INIT_CLEANUP,
     .p.priv_class         = &mpeg1_class,
 };
+
+static int mpeg2_get_supported_config(const AVCodecContext *avctx,
+                                      const AVCodec *codec,
+                                      enum AVCodecConfig config,
+                                      unsigned flags, const void **out,
+                                      int *out_num)
+{
+    if (config == AV_CODEC_CONFIG_CHROMA_LOCATION) {
+        static const enum AVChromaLocation left[]    = { AVCHROMA_LOC_LEFT,    AVCHROMA_LOC_UNSPECIFIED };
+        static const enum AVChromaLocation topleft[] = { AVCHROMA_LOC_TOPLEFT, AVCHROMA_LOC_UNSPECIFIED };
+        enum AVPixelFormat pix_fmt = avctx ? avctx->pix_fmt : AV_PIX_FMT_NONE;
+
+        /* 4:2:2 has no vertical subsampling, so the left siting of 4:2:0
+         * fits it too when the pixel format is not decided yet. */
+        *out     = pix_fmt == AV_PIX_FMT_YUV422P ? topleft : left;
+        *out_num = 1;
+        return 0;
+    }
+
+    return ff_default_get_supported_config(avctx, codec, config, flags, out, out_num);
+}
 
 const FFCodec ff_mpeg2video_encoder = {
     .p.name               = "mpeg2video",
@@ -1333,6 +1366,7 @@ const FFCodec ff_mpeg2video_encoder = {
     .close                = ff_mpv_encode_end,
     CODEC_FRAMERATES_ARRAY(ff_mpeg2_frame_rate_tab),
     CODEC_PIXFMTS(AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P),
+    .get_supported_config = mpeg2_get_supported_config,
     .color_ranges         = AVCOL_RANGE_MPEG,
     .p.capabilities       = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |
                             AV_CODEC_CAP_SLICE_THREADS |

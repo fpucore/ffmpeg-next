@@ -78,6 +78,9 @@ static const CheckasmTest tests[] = {
     #if CONFIG_AUDIODSP
         { "audiodsp", checkasm_check_audiodsp },
     #endif
+    #if CONFIG_BITPACKED_DECODER
+        { "bitpackeddec", checkasm_check_bitpackeddec },
+    #endif
     #if CONFIG_BLOCKDSP
         { "blockdsp", checkasm_check_blockdsp },
     #endif
@@ -178,6 +181,9 @@ static const CheckasmTest tests[] = {
     #if CONFIG_PNG_DECODER
         { "png", checkasm_check_png },
     #endif
+    #if CONFIG_PRORES_DECODER
+        { "proresdsp", checkasm_check_proresdsp },
+    #endif
     #if CONFIG_QPELDSP
         { "qpeldsp", checkasm_check_qpeldsp },
     #endif
@@ -238,6 +244,7 @@ static const CheckasmTest tests[] = {
     #if CONFIG_VVC_DECODER
         { "vvc_alf", checkasm_check_vvc_alf },
         { "vvc_mc",  checkasm_check_vvc_mc  },
+        { "vvc_pred", checkasm_check_vvc_pred },
         { "vvc_sao", checkasm_check_vvc_sao },
     #endif
 #endif
@@ -278,8 +285,14 @@ static const CheckasmTest tests[] = {
     #if CONFIG_IDET_FILTER
         { "vf_idet", checkasm_check_idet },
     #endif
+    #if CONFIG_MPDECIMATE_FILTER
+        { "vf_mpdecimate", checkasm_check_mpdecimate },
+    #endif
     #if CONFIG_NLMEANS_FILTER
         { "vf_nlmeans", checkasm_check_nlmeans },
+    #endif
+    #if CONFIG_LIMITER_FILTER
+        { "vf_limiter", checkasm_check_vf_limiter },
     #endif
     #if CONFIG_PP7_FILTER
         { "vf_pp7", checkasm_check_vf_pp7 },
@@ -303,6 +316,7 @@ static const CheckasmTest tests[] = {
 #endif
 #if CONFIG_AVUTIL
         { "aes",       checkasm_check_aes },
+        { "base64",    checkasm_check_base64 },
         { "crc",       checkasm_check_crc,   .uninit = checkasm_uninit_crc },
         { "fixed_dsp", checkasm_check_fixed_dsp },
         { "float_dsp", checkasm_check_float_dsp },
@@ -331,7 +345,9 @@ static const CheckasmCpuInfo cpuflags[] = {
     { "SME-I16I64", "sme_i16i64", AV_CPU_FLAG_SME_I16I64 },
     { "CRC",      "crc",      AV_CPU_FLAG_ARM_CRC },
     { "SME2",     "sme2",      AV_CPU_FLAG_SME2 },
-    { "PMULL",    "pmull_eor3", AV_CPU_FLAG_PMULL|AV_CPU_FLAG_EOR3 },
+    { "PMULL",    "pmull_eor3", AV_CPU_FLAG_PMULL|AV_CPU_FLAG_EOR3, .mask = AV_CPU_FLAG_ARM_CRC },
+    { "PMULL+CRC","pmull_eor3_crc", AV_CPU_FLAG_PMULL|AV_CPU_FLAG_EOR3|AV_CPU_FLAG_ARM_CRC },
+    { "AES",      "aes",      AV_CPU_FLAG_ARM_AES },
 #elif ARCH_ARM
     { "ARMV5TE",  "armv5te",  AV_CPU_FLAG_ARMV5TE },
     { "ARMV6",    "armv6",    AV_CPU_FLAG_ARMV6 },
@@ -368,11 +384,12 @@ static const CheckasmCpuInfo cpuflags[] = {
     { "SSE4.2",     "sse42",     AV_CPU_FLAG_SSE42 },
     { "AES-NI",     "aesni",     AV_CPU_FLAG_AESNI },
     { "CLMUL",      "clmul",     AV_CPU_FLAG_CLMUL },
-    { "AVX",        "avx",       AV_CPU_FLAG_AVX },
+    { "AVX",        "avx",       AV_CPU_FLAG_AVX|AV_CPU_FLAG_AVXSLOW },
     { "XOP",        "xop",       AV_CPU_FLAG_XOP },
     { "FMA3",       "fma3",      AV_CPU_FLAG_FMA3 },
     { "FMA4",       "fma4",      AV_CPU_FLAG_FMA4 },
     { "AVX2",       "avx2",      AV_CPU_FLAG_AVX2 },
+    { "AVX-VNNI",   "avxvnni",   AV_CPU_FLAG_AVXVNNI },
     { "AVX-512",    "avx512",    AV_CPU_FLAG_AVX512 },
     { "AVX-512ICL", "avx512icl", AV_CPU_FLAG_AVX512ICL },
 #elif ARCH_LOONGARCH
@@ -384,18 +401,31 @@ static const CheckasmCpuInfo cpuflags[] = {
     { NULL }
 };
 
+static int host_cpu_flags;
+
 static void set_cpu_flags(uint64_t flags)
 {
-    av_force_cpu_flags((int) flags);
+    av_force_cpu_flags((int) flags & host_cpu_flags);
 }
 
 int main(int argc, const char *argv[])
 {
+    /* Include optional hints for reporting; set_cpu_flags() masks out hints
+     * absent from the host before DSP dispatch. AV_CPU_FLAG_AVXSLOW may alias
+     * a flag on another architecture, so keep it x86-only. */
+#if ARCH_X86
+    const int extra_flags = AV_CPU_FLAG_AVXSLOW;
+#else
+    const int extra_flags = 0;
+#endif
+
+    host_cpu_flags = av_get_cpu_flags();
+
     CheckasmConfig cfg = {
         .cpu_flags      = cpuflags,
         .tests          = tests,
         .set_cpu_flags  = set_cpu_flags,
-        .cpu            = av_get_cpu_flags(),
+        .cpu            = host_cpu_flags | extra_flags,
     };
 
     return checkasm_main(&cfg, argc, argv);

@@ -46,34 +46,19 @@
 
 static int amf_filter_query_formats(AVFilterContext *avctx)
 {
-    const enum AVPixelFormat *output_pix_fmts;
     static const enum AVPixelFormat input_pix_fmts[] = {
-        AV_PIX_FMT_AMF_SURFACE,
-        AV_PIX_FMT_NV12,
-        AV_PIX_FMT_P010,
-        AV_PIX_FMT_0RGB,
-        AV_PIX_FMT_BGR0,
-        AV_PIX_FMT_BGRA,
-        AV_PIX_FMT_RGB0,
-        AV_PIX_FMT_RGBA,
-        AV_PIX_FMT_GRAY8,
-        AV_PIX_FMT_YUV420P,
-        AV_PIX_FMT_YUV420P10,
-        AV_PIX_FMT_YUYV422,
-        AV_PIX_FMT_NONE,
-    };
-    static const enum AVPixelFormat output_pix_fmts_default[] = {
         AV_PIX_FMT_AMF_SURFACE,
         AV_PIX_FMT_D3D11,
         AV_PIX_FMT_DXVA2_VLD,
         AV_PIX_FMT_NV12,
+        AV_PIX_FMT_P010,
         AV_PIX_FMT_BGRA,
+        AV_PIX_FMT_RGBA,
         AV_PIX_FMT_YUV420P,
         AV_PIX_FMT_NONE,
     };
-    output_pix_fmts = output_pix_fmts_default;
 
-    return amf_setup_input_output_formats(avctx, input_pix_fmts, output_pix_fmts);
+    return amf_setup_input_output_formats(avctx, input_pix_fmts);
 }
 
 static int amf_filter_config_output(AVFilterLink *outlink)
@@ -98,7 +83,7 @@ static int amf_filter_config_output(AVFilterLink *outlink)
     // FIXME: add checks whether we have HW context
     hwframes_out = (AVHWFramesContext*)ctx->hwframes_out_ref->data;
     res = ctx->amf_device_ctx->factory->pVtbl->CreateComponent(ctx->amf_device_ctx->factory, ctx->amf_device_ctx->context, AMFVideoConverter, &ctx->component);
-    AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR_FILTER_NOT_FOUND, "CreateComponent(%ls) failed with error %d\n", AMFVideoConverter, res);
+    AMF_RETURN_IF_FALSE(avctx, res == AMF_OK, AVERROR_FILTER_NOT_FOUND, "CreateComponent(%ls) failed with error %d\n", AMFVideoConverter, res);
 
     mem_type = av_amf_get_memory_type(ctx->amf_device_ctx);
     if (mem_type != AMF_MEMORY_UNKNOWN)
@@ -204,6 +189,35 @@ static int amf_filter_config_output(AVFilterLink *outlink)
         AMF_ASSIGN_PROPERTY_INT64(res, ctx->component, AMF_VIDEO_CONVERTER_OUTPUT_TRANSFER_CHARACTERISTIC, ctx->out_trc);
     }
 
+    if (ctx->acceleration != AMF_VIDEO_CONVERTER_ACCELERATION_DEFAULT) {
+        AMFCaps *converter_caps = NULL;
+        int vpe_available = 0;
+        int supported = 0;
+
+        res = AMF_IFACE_CALL(ctx->component, GetCaps, &converter_caps);
+        if (res == AMF_OK && converter_caps) {
+            AMFVariantStruct var;
+            AMFVariantInit(&var);
+
+            res = AMF_IFACE_CALL(converter_caps, GetProperty, AMF_VIDEO_CONVERTER_CAP_VPE_AVAILABILITY, &var);
+            if (res == AMF_OK) {
+                supported = 1;
+                vpe_available = var.boolValue;
+            }
+            AMF_IFACE_CALL(converter_caps, Release);
+        }
+
+        if (!supported) {
+            av_log(avctx, AV_LOG_WARNING, "Acceleration selection is not supported by the AMF runtime, the compute path will be used.\n");
+        } else if (ctx->acceleration == AMF_VIDEO_CONVERTER_ACCELERATION_VPE_PREFERRED && !vpe_available) {
+            av_log(avctx, AV_LOG_WARNING, "VPE is unavailable on this device, the compute path will be used.\n");
+        } else {
+            AMF_ASSIGN_PROPERTY_INT64(res, ctx->component, AMF_VIDEO_CONVERTER_ACCELERATION_TYPE, ctx->acceleration);
+            if (res != AMF_OK)
+                av_log(avctx, AV_LOG_WARNING, "Failed to set requested acceleration type, error: %d\n", res);
+        }
+    }
+
     res = ctx->component->pVtbl->Init(ctx->component, av_av_to_amf_format(in_format), inlink->w, inlink->h);
     AMF_RETURN_IF_FALSE(avctx, res == AMF_OK, AVERROR_UNKNOWN, "AMFConverter-Init() failed with error %d\n", res);
 
@@ -271,6 +285,10 @@ static const AVOption vpp_amf_options[] = {
     { "force_divisible_by", "enforce that the output resolution is divisible by a defined integer when force_original_aspect_ratio is used", OFFSET(force_divisible_by), AV_OPT_TYPE_INT, { .i64 = 1}, 1, 256, FLAGS },
     { "reset_sar", "reset SAR to 1 and scale to square pixels if scaling proportionally", OFFSET(reset_sar), AV_OPT_TYPE_BOOL, { .i64 = 0}, 0, 1, FLAGS },
 
+    { "acceleration",   "Preferred converter acceleration path",     OFFSET(acceleration),      AV_OPT_TYPE_INT,   { .i64 = AMF_VIDEO_CONVERTER_ACCELERATION_DEFAULT }, AMF_VIDEO_CONVERTER_ACCELERATION_DEFAULT, AMF_VIDEO_CONVERTER_ACCELERATION_VPE_PREFERRED, FLAGS, "acceleration" },
+    { "compute",        "Compute",          0,  AV_OPT_TYPE_CONST, { .i64 = AMF_VIDEO_CONVERTER_ACCELERATION_COMPUTE }, 0, 0, FLAGS, "acceleration" },
+    { "vpe",            "VPE preferred",    0,  AV_OPT_TYPE_CONST, { .i64 = AMF_VIDEO_CONVERTER_ACCELERATION_VPE_PREFERRED },  0, 0, FLAGS, "acceleration" },
+
     { NULL },
 };
 
@@ -281,7 +299,6 @@ static const AVFilterPad amf_filter_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
-        .filter_frame = amf_filter_filter_frame,
     }
 };
 
@@ -301,6 +318,7 @@ FFFilter ff_vf_vpp_amf = {
     .priv_size = sizeof(AMFFilterContext),
     .init          = amf_filter_init,
     .uninit        = amf_filter_uninit,
+    .activate      = amf_filter_activate,
     FILTER_INPUTS(amf_filter_inputs),
     FILTER_OUTPUTS(amf_filter_outputs),
     FILTER_QUERY_FUNC(amf_filter_query_formats),

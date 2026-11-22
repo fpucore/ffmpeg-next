@@ -578,8 +578,9 @@ typedef struct AVCodecContext {
      *   For encoding, this field is unused (see initial_padding).
      *
      *   For decoding, this is the number of samples the decoder needs to
-     *   output before the decoder's output is valid. When seeking, you should
-     *   start decoding this many samples prior to your desired seek point.
+     *   output before the decoder's output is valid. They are discarded when
+     *   the decoder is opened. When seeking, start decoding seek_preroll
+     *   samples prior to the desired seek point instead.
      *
      * - encoding: Set by libavcodec.
      * - decoding: Set by libavcodec.
@@ -677,6 +678,9 @@ typedef struct AVCodecContext {
      *   output format.
      * - decoding: Set by libavcodec, can be set by the user to propagate the
      *   color range to components reading from the decoder context.
+     *
+     * @note This field is ignored for floating point pixel formats, which
+     *       are always full range. See AVColorRange.
      */
     enum AVColorRange color_range;
 
@@ -1126,7 +1130,8 @@ typedef struct AVCodecContext {
 
     /**
      * Number of samples to skip after a discontinuity
-     * - decoding: unused
+     * - decoding: may be set by the user, a decoder may raise it to the
+     *             pre-roll it needs
      * - encoding: set by libavcodec
      */
     int seek_preroll;
@@ -1358,6 +1363,7 @@ typedef struct AVCodecContext {
 #define FF_BUG_MS               8192 ///< Work around various bugs in Microsoft's broken decoders.
 #define FF_BUG_TRUNCATED       16384
 #define FF_BUG_IEDGE           32768
+#define FF_BUG_H264_DP_NNZ     65536 ///< H.264: JM's nC derivation for partitioned slices.
 
     /**
      * strictly follow the standard (MPEG-4, ...).
@@ -1535,6 +1541,10 @@ typedef struct AVCodecContext {
 #define FF_DCT_ALTIVEC 5
 #define FF_DCT_FAAN    6
 #define FF_DCT_NEON    7
+/**
+ * Select a RISC-V Vector implementation of the forward DCT when available.
+ */
+#define FF_DCT_RVV     8
 
     /**
      * IDCT algorithm, see FF_IDCT_* below.
@@ -1935,6 +1945,16 @@ typedef struct AVCodecContext {
      * - decoding: Set by libavcodec
      */
     enum AVAlphaMode alpha_mode;
+
+    /**
+     * Skip prediction (intra prediction and motion compensation) for
+     * selected frames. When skip_pred and skip_idct both discard a frame,
+     * the decoder may skip all pixel operations for it and output it with
+     * valid metadata and undefined pixels.
+     * - encoding: unused
+     * - decoding: Set by user.
+     */
+    enum AVDiscard skip_pred;
 } AVCodecContext;
 
 /**
@@ -2578,6 +2598,7 @@ enum AVCodecConfig {
     AV_CODEC_CONFIG_COLOR_RANGE,    ///< AVColorRange, terminated by AVCOL_RANGE_UNSPECIFIED
     AV_CODEC_CONFIG_COLOR_SPACE,    ///< AVColorSpace, terminated by AVCOL_SPC_UNSPECIFIED
     AV_CODEC_CONFIG_ALPHA_MODE,     ///< AVAlphaMode, terminated by AVALPHA_MODE_UNSPECIFIED
+    AV_CODEC_CONFIG_CHROMA_LOCATION, ///< AVChromaLocation, terminated by AVCHROMA_LOC_UNSPECIFIED
 };
 
 /**
@@ -2801,7 +2822,9 @@ AVCodecParserContext *av_parser_init(enum AVCodecID codec_id);
  * @param buf_size      buffer size in bytes without the padding. I.e. the full buffer
                         size is assumed to be buf_size + AV_INPUT_BUFFER_PADDING_SIZE.
                         To signal EOF, this should be 0 (so that the last frame
-                        can be output).
+                        can be output). After EOF has been signaled, only
+                        further calls with buf_size 0 are allowed; to parse
+                        new data, close the parser and allocate a new one.
  * @param pts           input presentation timestamp.
  * @param dts           input decoding timestamp.
  * @param pos           input byte position in stream.

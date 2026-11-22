@@ -183,6 +183,7 @@ typedef struct MOVTrack {
     int pal_done;
 
     int is_unaligned_qt_rgb;
+    int colr_warned;
 
     unsigned int squash_fragment_samples_to_one; //< flag to note formats where all samples for a fragment are to be squashed
 
@@ -228,6 +229,7 @@ typedef struct MOVMuxContext {
     int iods_audio_profile;
 
     int moov_written;
+    int64_t moov_end; ///< End of the initial moov atom.
     int fragments;
     int max_fragment_duration;
     int min_fragment_duration;

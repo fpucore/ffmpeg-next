@@ -18,8 +18,14 @@ fate-wavpack-lossless-32bit: CMD = md5pipe -i $(TARGET_SAMPLES)/wavpack/lossless
 FATE_WAVPACK_F32 += fate-wavpack-lossless-float
 fate-wavpack-lossless-float: CMD = md5pipe -i $(TARGET_SAMPLES)/wavpack/lossless/32bit_float-partial.wv -f f32le -af aresample
 
-FATE_WAVPACK_F32 += fate-wavpack-lossless-dsd
+FATE_WAVPACK-$(call FILTERDEMDECENCMUX, ARESAMPLE, WV, WAVPACK, PCM_F32LE, PCM_F32LE, MD5_PROTOCOL SWRESAMPLE) += fate-wavpack-lossless-dsd
 fate-wavpack-lossless-dsd: CMD = md5pipe -i $(TARGET_SAMPLES)/wavpack/lossless/dsd.wv -f f32le -af aresample
+
+FATE_WAVPACK-$(call FRAMECRC, WV, WAVPACK, DSD_MSBF_ENCODER) += fate-wavpack-dsd
+fate-wavpack-dsd: CMD = framecrc -request_sample_fmt dsd -i $(TARGET_SAMPLES)/wavpack/lossless/dsd.wv -c:a dsd_msbf
+
+FATE_WAVPACK_F32 += fate-wavpack-dsd-pcm
+fate-wavpack-dsd-pcm: CMD = md5pipe -request_sample_fmt dsd -i $(TARGET_SAMPLES)/wavpack/lossless/dsd.wv -f f32le -af aresample
 
 # lossy
 
@@ -96,12 +102,12 @@ fate-wavpack-matroskamode: CMD = md5pipe -i $(TARGET_SAMPLES)/wavpack/special/ma
 FATE_WAVPACK-$(call DEMMUX, WV, MATROSKA, MD5_PROTOCOL) += fate-wavpack-matroska_mux-mono
 fate-wavpack-matroska_mux-mono: CMD = md5pipe -i $(TARGET_SAMPLES)/wavpack/num_channels/mono_16bit_int.wv -c copy -fflags +bitexact -f matroska
 fate-wavpack-matroska_mux-mono: CMP = oneline
-fate-wavpack-matroska_mux-mono: REF = 5863eb94f7583aa9c5fded17474f2e7c
+fate-wavpack-matroska_mux-mono: REF = 17ecbc5ffe043bba3140c6dc62bf7eba
 
 FATE_WAVPACK-$(call DEMMUX, WV, MATROSKA, MD5_PROTOCOL) += fate-wavpack-matroska_mux-61
 fate-wavpack-matroska_mux-61: CMD = md5pipe -i $(TARGET_SAMPLES)/wavpack/num_channels/eva_2.22_6.1_16bit-partial.wv -c copy -fflags +bitexact -f matroska
 fate-wavpack-matroska_mux-61: CMP = oneline
-fate-wavpack-matroska_mux-61: REF = 2bbb393d060fa841f1172028f2c69b3a
+fate-wavpack-matroska_mux-61: REF = f95d35fdcdfb5b8615618f21fdc2e4e4
 
 FATE_WAVPACK-$(call FILTERDEMDECENCMUX, ARESAMPLE, WV, WAVPACK, PCM_S8,    PCM_S8,    MD5_PROTOCOL) += $(FATE_WAVPACK_S8)
 FATE_WAVPACK-$(call FILTERDEMDECENCMUX, ARESAMPLE, WV, WAVPACK, PCM_S16LE, PCM_S16LE, MD5_PROTOCOL) += $(FATE_WAVPACK_S16)
